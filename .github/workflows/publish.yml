@@ -1,0 +1,48 @@
+name: Publish container
+
+on:
+  workflow_dispatch:
+  release:
+
+jobs:
+  build:
+    name: Publish image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Determine docker tags
+        id: version_tags
+        shell: python
+        run: |
+          import re
+          from pathlib import Path
+
+          if ${{ github.event_name }} == "workflow_dispatch":
+              print(f"::set-output name=tags::test")
+
+          else:
+              dockerfile_txt = Path("Dockerfile").read_text()
+
+              match = re.search(r"/cxx-(?P<sonar_cxx_version>\d+\.\d+\.\d+)/", dockerfile_txt)
+
+              if match is None:
+                  raise ValueError("Unable not determine sonar-cxx version.")
+
+              print(f"::set-output name=tags::latest,{match.group('sonar_cxx_version')}")
+
+      - name: Build and push image
+        uses: mr-smithers-excellent/docker-build-push@v5
+        with:
+          image: sonar-cxx
+          tags: ${{ steps.version_tags.outputs.tags }}
+          registry: ghcr.io
+          dockerfile: Dockerfile
+          directory: /
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
