@@ -37,7 +37,7 @@ jobs:
               print(f"::set-output name=tags::latest,{match.group('sonar_cxx_version')}")
 
       - name: Build and push image
-        uses: mr-smithers-excellent/docker-build-push@v5
+        uses: mr-smithers-excellent/docker-build-push@v6
         with:
           image: sonar-cxx
           tags: ${{ steps.version_tags.outputs.tags }}
