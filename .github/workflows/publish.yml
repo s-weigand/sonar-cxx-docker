@@ -3,6 +3,7 @@ name: Publish container
 on:
   workflow_dispatch:
   release:
+    types: released
 
 jobs:
   build:
@@ -14,17 +15,21 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Determine docker tags
         id: version_tags
         shell: python
         run: |
+          import os
           import re
           from pathlib import Path
 
+          gh_output = Path(os.getenv("GITHUB_OUTPUT", ""))
+
           if "${{ github.event_name }}" == "workflow_dispatch":
-              print(f"::set-output name=tags::test")
+              with gh_output.open("a", encoding="utf8") as f:
+                  f.writelines(["tags=test"])
 
           else:
               dockerfile_txt = Path("Dockerfile").read_text()
@@ -34,10 +39,14 @@ jobs:
               if match is None:
                   raise ValueError("Unable not determine sonar-cxx version.")
 
-              print(f"::set-output name=tags::latest,{match.group('sonar_cxx_version')}")
+              with gh_output.open("a", encoding="utf8") as f:
+                  f.writelines([f"tags=latest,{match.group('sonar_cxx_version')}"])
+
+      - name: Show tags
+        run: echo ${{ steps.version_tags.outputs.tags }}
 
       - name: Build and push image
-        uses: mr-smithers-excellent/docker-build-push@v5
+        uses: mr-smithers-excellent/docker-build-push@v6
         with:
           image: sonar-cxx
           tags: ${{ steps.version_tags.outputs.tags }}
